@@ -1,172 +1,204 @@
-# WebGPU vs WebGL2：霜境渲染实验室
+<div align="center">
 
-一个基于 Three.js 的单页 3D 渲染对比 Demo，用同一套雪地聚落场景比较 WebGPU 与 WebGL2 的端到端表现。
+# WebGPU vs WebGL2
 
-项目不会同时运行两个渲染后端。页面始终只有一个可见 Canvas；切换后端时会先初始化并验证新渲染器，成功后再释放旧渲染器，从而避免 WebGPU 与 WebGL2 同时给 GPU 施压。
+用Three.js写的同一套雪地场景，直观对比两种技术的渲染效果。
 
-## 功能
+![Three.js](https://img.shields.io/badge/Three.js-r185-111111?logo=threedotjs&logoColor=white)
+![WebGPU](https://img.shields.io/badge/WebGPU-supported-2563eb)
+![WebGL2](https://img.shields.io/badge/WebGL2-supported-f97316)
+![TypeScript](https://img.shields.io/badge/TypeScript-7-3178c6?logo=typescript&logoColor=white)
 
-- 在同一页面切换：
-  - WebGPU：Three.js `WebGPURenderer`
-  - WebGL2：Three.js `WebGLRenderer`
-- 原创低多边形雪地聚落场景
-- 实例化针叶树、岩石、木箱和围栏
-- 动态居民、飘雪、炉火、灯光与阴影
-- 低、中、高、极限四档场景负载
-- 可调整树木、居民、雪花、阴影分辨率和像素倍率
-- 实时显示 FPS、P50/P95/P99 帧间隔、长帧比例、Draw Calls 和三角形数量
-- 自动执行 WebGPU → WebGL2、WebGL2 → WebGPU 的交叉跑分
-- 跑分时将初始化耗时与稳态帧数据分开统计
-- 页面失焦、隐藏、尺寸或 DPR 变化时自动取消当前跑分
-- WebGPU 不可用或发生静默回退时给出明确提示
+</div>
 
-## 对比口径
+## 项目简介
 
-两个后端共用同一套：
+这是一个单页 3D 渲染对比 Demo。
 
-- Scene Graph
-- 相机与镜头位置
-- Geometry、Material 和灯光
-- 实例数量与固定随机布局
-- 动画逻辑
-- 色彩空间、Tone Mapping、阴影设置和 DPR
+页面只保留一个 Canvas。选择 WebGPU 或 WebGL2 后，项目会切换渲染器。
 
-为了提高实际稳定性，当前对比的是两个完整渲染路径：
-
-| 选项 | Three.js 渲染器 | 图形 API |
+| 模式 | Three.js 渲染器 | 图形 API |
 | --- | --- | --- |
 | WebGPU | `WebGPURenderer` | WebGPU |
 | WebGL2 | `WebGLRenderer` | WebGL2 |
 
-因此结果不仅包含底层 API 的差异，也可能包含 Three.js 两种渲染器实现的差异。项目适合做同一业务场景下的端到端对比，不应被解读为纯 API 微基准。
+场景、相机、材质、灯光、对象数量和动画逻辑保持一致。测试结果表示两条完整渲染路径在当前设备上的表现，不是纯 API 微基准。
 
-## 环境要求
+## 功能
 
-- Node.js 22.12 或更高版本
-- 支持 WebGL2 的现代浏览器
-- WebGPU 测试需要支持 WebGPU 的浏览器和设备
-- WebGPU 只能在安全上下文运行：
-  - 本地开发使用 `localhost` 或 `127.0.0.1`
-  - 在线部署使用 HTTPS
+- WebGPU / WebGL2 手动切换
+- 低、中、高、极限四档负载
+- 树木、居民、雪花、阴影和像素倍率调节
+- FPS、P50、P95、P99、长帧比例、Draw Calls、三角形数量
+- WebGPU → WebGL2 → WebGL2 → WebGPU 交叉跑分
+- 桌面控制面板和移动端布局
 
-建议优先使用最新版 Chrome 或 Edge 测试。不同浏览器、操作系统、显卡驱动、分辨率和设备温度都会影响结果。
+## 第一次运行
 
-## 本地运行
+### 1. 准备 Node.js
+
+这个项目依赖较新的 Three.js 和新版 TypeScript 构建链，所以需要 **Node.js 22.12 或更高版本**。版本太低的话，`npm ci` 和构建脚本大概率会直接报错。
+
+先看看本机版本：
 
 ```bash
-npm install
+node -v
+```
+
+如果输出的版本已经 >= 22.12.0，可以跳过这一步。否则在下面几种装法中选择一种进行安装。
+
+#### 用 nvm 管理 🌟
+
+nvm（Node Version Manager）能让你在一台机器上并存多个 Node 版本，切换很方便。
+
+**macOS / Linux**
+
+```bash
+# 安装 nvm（本机已有可跳过）
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/master/install.sh | bash
+
+# 安装并切到 Node 22
+nvm install 22
+nvm use 22
+```
+
+装完重新开一个终端，或者手动 `source ~/.zshrc`（用 bash 就 `source ~/.bashrc`），再 `node -v` 确认一下。
+
+**Windows**
+
+Windows 上没有原版 nvm，用社区维护的 **nvm-windows**：去它的 GitHub Releases 下载 `nvm-setup.exe` 安装，然后在终端里：
+
+```bash
+nvm install 22
+nvm use 22
+```
+
+#### macOS — Homebrew
+
+如果你更习惯用 Homebrew 管开发工具，一行就能装好（npm 会跟着一起装上）：
+
+```bash
+brew install node
+```
+
+Apple Silicon 的 Mac 上 Homebrew 装在 `/opt/homebrew`，Intel Mac 则是 `/usr/local`。如果终端报 `brew: command not found`，先把对应路径加进 PATH：
+
+```bash
+# Apple Silicon
+export PATH="/opt/homebrew/bin:$PATH"
+# Intel
+export PATH="/usr/local/bin:$PATH"
+```
+
+建议把这行写进 `~/.zshrc`，省得每次新开终端都要重新敲。
+
+#### Windows — 官方安装包
+
+不想碰命令行，就去 [nodejs.org](https://nodejs.org) 下载 **LTS** 里 22.x 的安装包，双击运行。安装向导里记得勾上 **Add to PATH**，装完就能直接在终端用 `node` 和 `npm` 了。
+
+用 winget 也可以一行搞定：
+
+```bash
+winget install OpenJS.NodeJS.LTS
+```
+
+#### Linux
+
+Debian / Ubuntu 源里的 Node 版本往往偏旧，不建议直接 `apt install nodejs`。还是上面的 nvm 最省心；或者去 nodejs.org 下载官方二进制包，解压到 `/usr/local` 即可。
+
+#### 验证安装
+
+不管用哪种方式，最后都跑一下：
+
+```bash
+node -v
+npm -v
+```
+
+两个命令都能正常打印版本号，就说明环境没问题了。要是 `node -v` 报 `command not found`，基本是 PATH 没配好——把 Node 所在目录加进环境变量再试一次就行。
+
+### 2. 获取项目
+
+使用 Git 克隆：
+
+```bash
+git clone <仓库地址>
+cd WebGPUvsWebGL
+```
+
+也可以在 GitHub 页面点击 `Code` → `Download ZIP`，解压后在终端进入项目目录。
+
+### 3. 安装依赖
+
+```bash
+npm ci
+```
+
+### 4. 启动网页
+
+```bash
 npm run dev
 ```
 
-根据终端提示打开本地地址。不要直接双击 `dist/index.html` 测试 WebGPU，因为 `file://` 页面不属于可靠的安全上下文。
-
-## 质量检查
-
-```bash
-npm run typecheck
-npm test
-npm run build
-```
-
-构建完成后，可预览生产版本：
-
-```bash
-npm run preview
-```
-
-## 项目结构
+终端会显示本地地址，通常是：
 
 ```text
-WebGPUvsWebGL/
-├── src/
-│   ├── main.ts          # 页面、渲染器切换、指标与自动跑分
-│   ├── scene.ts         # 程序化雪地聚落与场景更新
-│   ├── stats.ts         # 帧间隔统计函数
-│   ├── stats.test.ts    # Vitest 单元测试
-│   └── style.css        # 控制面板与响应式样式
-├── index.html
-├── package.json
-├── package-lock.json
-├── tsconfig.json
-├── vite.config.ts
-├── .gitignore
-└── README.md
+http://127.0.0.1:5173
 ```
 
-`node_modules/` 和 `dist/` 不需要提交到 GitHub，它们已经写入 `.gitignore`：
+点击终端中的地址，或复制到浏览器打开。
 
-- `node_modules/` 可通过 `npm install` 或 `npm ci` 重建
-- `dist/` 可通过 `npm run build` 重建
+### 5. 开始对比
 
-## 自动跑分方法
+1. 在左侧面板选择 `WebGPU` 或 `WebGL2`
+2. 选择质量预设，或手动调整场景负载
+3. 查看实时帧指标
+4. 点击“开始交叉跑分”生成两种模式的结果
 
-每个后端的测试分为两个阶段：
+WebGPU 需要安全上下文。本地请通过 `localhost` 或 `127.0.0.1` 打开，不要直接双击 HTML 文件。
 
-1. 预热 60 帧，不计入稳态成绩
-2. 采样 180 帧
+## 常用命令
 
-完整顺序为：
+```bash
+npm run dev        # 启动开发服务器
+npm run typecheck  # TypeScript 类型检查
+npm test           # 运行单元测试
+npm run build      # 生成生产文件
+npm run preview    # 预览生产构建
+```
+
+生产文件会生成在 `dist/`。
+
+## 跑分说明
+
+每个后端先预热 60 帧，再采样 180 帧。完整顺序为：
 
 ```text
 WebGPU → WebGL2 → WebGL2 → WebGPU
 ```
 
-反转顺序可以减小首次执行、缓存和设备升温对结果的偏差。两轮结果会按后端聚合。
+初始化耗时与稳态帧数据分开记录。页面失焦、隐藏、尺寸变化或 DPR 变化会取消当前测试。
 
-当前展示的指标：
+如果两个后端都接近显示器刷新率上限，FPS 差异会很小。此时可提高场景负载，重点观察 P95、P99 和长帧比例。
 
-- 平均 FPS
-- 帧间隔中位数
-- P95 / P99 帧间隔
-- 超过 16.7 ms 的帧比例
-- 超过 33.3 ms 的帧比例
-- Draw Calls
-- 三角形数量
-- 渲染器初始化耗时
+## 项目结构
 
-项目不会把 `performance.now()` 包围 `renderer.render()` 得到的时间冒充为 GPU 时间，也不展示浏览器无法稳定横向比较的 GPU 占用率、功耗或温度。
-
-如果两个后端都稳定在显示器刷新率上限附近，FPS 可能无法拉开差距。此时可以提高场景负载，并重点观察 P95、P99 和长帧比例。
-
-## GitHub Pages
-
-Vite 已设置相对资源路径，生产构建可以部署到 GitHub Pages 的仓库子路径。
-
-先生成静态文件：
-
-```bash
-npm ci
-npm run build
+```text
+├── src/
+│   ├── main.ts          # 页面、渲染器切换与跑分
+│   ├── scene.ts         # 雪地场景
+│   ├── stats.ts         # 帧数据统计
+│   ├── stats.test.ts    # 单元测试
+│   └── style.css        # 页面样式
+├── index.html
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+└── vite.config.ts
 ```
 
-然后将 `dist/` 作为 GitHub Pages 的部署目录。线上页面必须通过 HTTPS 访问，GitHub Pages 默认满足该要求。
+## 浏览器支持
 
-## 上传到 GitHub
+建议使用最新版 Chrome 或 Edge。
 
-在项目根目录执行：
-
-```bash
-git init
-git add .
-git commit -m "Initial WebGPU and WebGL2 benchmark"
-git branch -M main
-git remote add origin <你的 GitHub 仓库地址>
-git push -u origin main
-```
-
-首次提交前可以运行：
-
-```bash
-git status
-```
-
-确认 `node_modules/` 和 `dist/` 没有出现在待提交文件中。
-
-## 已知边界
-
-- WebGPU 支持情况取决于浏览器、系统、GPU 和驱动
-- WebGPU 可用不代表一定能成功获得 GPU Adapter 或 Device
-- WebGPU 与 WebGL2 在抗锯齿、浮点精度和阴影边缘上可能存在轻微视觉差异
-- 浏览器可能把两个 API 映射到不同的系统图形路径
-- 本项目反映的是当前设备、浏览器、窗口尺寸与场景配置下的结果
-- 正式性能结论应补充多台设备、多轮测试和设备温度控制
+WebGPU 是否可用取决于浏览器、操作系统、显卡和驱动。WebGL2 覆盖更广。不同设备、窗口尺寸和温度状态下的结果不宜直接横向比较。
